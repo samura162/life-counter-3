@@ -60,7 +60,6 @@
         .btn-plus { background: #2e7d32; color: #fff; }
         .btn-minus { background: #c62828; color: #fff; }
         .order-btn { background: #0277bd ; color: #fff; font-size: 2.5vmin; border: none; }
-        .rotate-btn { background: #6a1b9a ; color: #fff; font-size: 2.5vmin; border: none; }
         .reset-btn { background: #c62828 ; color: #fff; font-size: 2.5vmin; border: none; }
         .day-night-select { background: #444; color: #fff; font-size: 2.5vmin; }
         .room-share-btn { background: #e91e63; color: #fff; font-size: 2.5vmin; border: none; padding: 1px 4px; height: 4vh; cursor: pointer; }
@@ -89,7 +88,6 @@
                 <option value="day">昼</option>
                 <option value="night">夜</option>
             </select>
-            <button class="rotate-btn" onclick="rotateSeats()">席替え（時計回り）</button>
             <button class="order-btn" onclick="shuffleNames()">ターン順シャッフル</button>
             <button class="reset-btn" onclick="resetGame()">リセット</button>
         </div>
@@ -350,22 +348,6 @@
                 }
             }, 80);
         };
-
-        window.rotateSeats = () => {
-            const p1Name = gameState.P1.name;
-            const p2Name = gameState.P2.name;
-            const p3Name = gameState.P3.name;
-            const p4Name = gameState.P4.name;
-
-            setDeepValue(gameState, 'P1/name', p4Name);
-            setDeepValue(gameState, 'P2/name', p1Name);
-            setDeepValue(gameState, 'P3/name', p2Name);
-            setDeepValue(gameState, 'P4/name', p3Name);
-
-            saveAndRender();
-            broadcast({ type: 'SYNC', state: gameState });
-        };
-
         window.triggerDice = (slot) => {
             const input = document.getElementById(`dice-in-${slot}`);
             const match = input.value.toLowerCase().match(/^(\d+)d(\d+)$/);
