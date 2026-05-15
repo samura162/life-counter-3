@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gemini Commander Counter (Save-Support)</title>
+    <link rel="icon" href="favicon.png" type="image/png">
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; height: 100vh; width: 100vw; color: #fff; font-family: sans-serif; overflow: hidden; }
+        body.state-none { background: #121212; color: #fff; }
+        body.state-none .app-header { background: #121212; }
+        body.state-none .player-box { background: #1f1f1f; border-color: #2a2a2a; }
+        body.state-day { background: #4a3a05; color: #fff; }
+        body.state-day .app-header { background: #4a3a05; }
+        body.state-day .player-box { background: rgba(0, 0, 0, 0.3); border-color: #5a4a15; }
+        body.state-night { background: #1a1b3a; color: #fff; }
+        body.state-night .app-header { background: #1a1b3a; }
+        body.state-night .player-box { background: rgba(0, 0, 0, 0.4); border-color: #2a2b4a; }
+        .cmd-box.is-self { opacity: 0.3; }
+        .grid { display: grid; grid-template-columns: 50% 50%; grid-template-rows: calc(50% - 1vh) calc(50% - 1vh); height: 96vh; width: 100%; gap: 1px; padding: 1px; }
+        .player-box { background: #111; border: 1px solid #333;display: flex; flex-direction: column; padding: 2px; }
+        #slot-P1 { grid-area: 1 / 1 / 2 / 2; } 
+        #slot-P2 { grid-area: 1 / 2 / 2 / 3; } 
+        #slot-P3 { grid-area: 2 / 2 / 3 / 3; } 
+        #slot-P4 { grid-area: 2 / 1 / 3 / 2; } 
+        .header-area { height: 4vh; display: flex; align-items: center; gap: 1px; flex-shrink: 0; white-space: nowrap; }
+        .name-select { background: #222; color: #fff; border: none; font-size: 4vmin; width: 35vw; height: 5vh; text-align-last: center; }
+        .partner-wrapper label { font-size: 3vmin; }
+        .main-display-wrapper { height: 57%; display: flex; align-items: center; gap: 1px; flex-shrink: 0; }
+        .life-center-unit { flex: 1.5; display: flex; flex-direction: column; align-items: center; }
+        .life { font-size: 17vmin; font-weight: bold; color: #4caf50; border: none; background: transparent; text-align: center; width: 100%; padding: 0; height: 14vmin; }
+        .life-btn-group { display: flex; gap: 2px; }
+        .btn-life { width: 8vw; height: 4vh; font-size: 4vmin; border: none; cursor: pointer; color: #fff; border-radius: 3px; }
+        .num-select { font-size: 3vmin; text-align-last: center;  margin-top: 1vh; background: #1f1f1f; color: #dcdcdc; }
+        .sidebar-counters { width: 25vw; display: flex; flex-direction: column; gap: 1px; }
+        .side-item { background: #1a1a1a; padding: 1px 1px; display: flex; justify-content: space-between; font-size: 2.5vmin; border-radius: 2px; align-items: center }
+        .side-label { font-size: 2.5vmin; }
+        .side-val { margin-left: 1vw; margin-right: 1vw; }
+        .btn-side, .btn-cmd { width: 4vw; height: 3vh; font-size: 4vmin; display: flex; align-items: center; background: #444; color: #fff; border: none; }
+        .side-dice-wrapper { background: #1a1a1a; height: 8vh; display: grid; grid-template-rows: 3.7vh 3.5vh; }
+        .side-dice-input-row { flex-wrap: nowrap; display: flex;  justify-content: space-around; align-items: center; width: 100%; align-self: start; }
+        .dice-input { width: 10vw; height: 3vh; font-size: 2.5vmin; }
+        .dice-btn { font-size: 2.5vmin ; background: #ffc107; color: #000; width: 10vw; height: 3.5vh; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .dice-res-row {  flex-wrap: nowrap; display: flex;  justify-content: space-around; align-items: center; width: 100%; }
+        .dice-result, .dice-format { flex: 1; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .dice-result { font-size: 4vmin ; color: #ffeb3b; font-weight: bold; }
+        .dice-format { font-size: 1.5vmin ; color: #ffffff; }
+        .commander-area { flex-grow: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 0px; min-height: 0; }
+        .cmd-box { background: #1a1a1a; border: 1px solid #222; padding: 1px; display: flex; flex-direction: column; justify-content: center; }
+        .commander-area .cmd-header { font-size: 1.5vmin; color: #ffffff; text-align: center; }
+        .cmd-body { display: flex; justify-content: space-around; align-items: center; }
+        .cmd-val { font-size: 3.5vmin; font-weight: bold; color: #ff9800; }
+        .cmd-side-label { font-size: 1vmin; color: #ffffff; display: block; width: 100%; text-align: center; margin-bottom: 0px; }
+        .cmd-unit { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .cmd-val-wrap { display: flex; align-items: center; justify-content: center; width: 100%; justify-content: space-around;}
+        .app-header { height: 5vh; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; background: #000; }
+        .header-btns button, .day-night-select { padding: 1px 4px; height: 4vh; align-items: center; }
+        .btn-plus { background: #2e7d32; color: #fff; }
+        .btn-minus { background: #c62828; color: #fff; }
+        .order-btn { background: #0277bd ; color: #fff; font-size: 2.5vmin; border: none; }
+        .reset-btn { background: #c62828 ; color: #fff; font-size: 2.5vmin; border: none; }
+        .day-night-select { background: #444; color: #fff; font-size: 2.5vmin; }
+        .room-share-btn { background: #e91e63; color: #fff; font-size: 2.5vmin; border: none; padding: 1px 4px; height: 4vh; cursor: pointer; }
+    </style>
+</head>
+<body class="state-none">
+    <div class="app-header">
+        <span id="app-title" style="font-size:0.8rem; font-weight:bold; color:#777;">Gemini Commander Counter</span>
+        <div class="header-btns">
+            <button class="room-share-btn" onclick="copyRoomUrl()">部屋URLをコピー</button>
+            <select id="day-night-ctrl" class="day-night-select" onchange="directInput('dayNight', this.value)">
+                <option value="none">昼夜:無</option>
+                <option value="day">昼</option>
+                <option value="night">夜</option>
+            </select>
+            <button class="order-btn" onclick="shuffleNames()">ターン順シャッフル</button>
+            <button class="reset-btn" onclick="resetGame()">リセット</button>
+        </div>
+    </div>
+    <div class="grid" id="main-grid"></div>
+
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script>
+        const memberList = ["Player1", "Player2", "Player3", "Player4", "GuestA", "GuestB"];
+        
+        // デフォルトの状態
+        const defaultState = {
+            dayNight: "none",
+            P1: { name: "", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } },
+            P2: { name: "", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } },
+            P3: { name: "", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } },
+            P4: { name: "", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } }
+        };
+
+        // ブラウザのLocalStorageから前回のデータを読み込む（なければデフォルト）
+        let gameState = JSON.parse(localStorage.getItem('edh_counter_state')) || JSON.parse(JSON.stringify(defaultState));
+
+        const playerSlots = ['P1', 'P2', 'P3', 'P4'];
+        const grid = document.getElementById('main-grid');
+
+        // UI生成
+        playerSlots.forEach((slot, index) => {
+            let html = `
+                <div class="player-box" id="slot-${slot}">
+                    <div class="header-area">
+                        <span class="order-num">${index + 1}</span>
+                        <select id="name-${slot}" class="name-select" onchange="if(this.value!=='') directInput('${slot}/name', this.value)">
+                            <option value="">名前選択</option>
+                        </select>
+                        <div class="partner-wrapper">
+                            <input type="checkbox" id="check-${slot}" class="partner-check" onchange="directInput('${slot}/isPartner', this.checked)">
+                            <label for="check-${slot}">共闘</label>
+                        </div>
+                    </div>
+                    <div class="main-display-wrapper">
+                        <div class="life-center-unit">
+                            <div class="life-wrapper"><input type="number" id="life-${slot}" class="life" value="40" onchange="directInput('${slot}/life', parseInt(this.value))"></div>
+                            <div class="life-btn-group">
+                                <button class="btn-life btn-minus" onclick="changeValue('${slot}/life', -1)">-1</button>
+                                <button class="btn-life btn-plus" onclick="changeValue('${slot}/life', 1)">+1</button>
+                            </div>
+                            <select class="num-select" onchange="if(this.value !== '') { directInput('${slot}/life', parseInt(this.value)); this.value = ''; }">
+                                <option value="">リストから</option>
+                                ${Array.from({length:150}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="sidebar-counters">
+                            <div id="side-main-${slot}"></div>
+                            <div class="side-dice-wrapper">
+                                <div class="side-dice-input-row">
+                                    <input type="text" id="dice-in-${slot}" class="dice-input" value="1d20" placeholder="1d20">
+                                    <button class="dice-btn" onclick="triggerDice('${slot}')">振</button>
+                                </div>
+                                <div class="dice-res-row">
+                                    <div id="dice-fmt-${slot}" class="dice-format"></div>
+                                    <div id="dice-res-${slot}" class="dice-result">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="commander-area" id="cmd-area-${slot}"></div>
+                </div>`;
+            grid.insertAdjacentHTML('beforeend', html);
+        });
+
+        // 名前の選択肢の初期化
+        playerSlots.forEach(slot => {
+            const sel = document.getElementById(`name-${slot}`);
+            let options = '<option value="">名前選択</option>';
+            memberList.forEach(v => { options += `<option value="${v}">${v}</option>`; });
+            sel.innerHTML = options;
+        });
+
+        function getDynamicColor(val, type) {
+            if (type === 'life') {
+                if (val <= 0) return "#f44336";
+                return `hsl(${Math.min(1, val / 40) * 120}, 100%, 60%)`;
+            } else if (type === 'cmd') {
+                if (val >= 21) return "#ff00ff";
+                return `hsl(${120 - (Math.min(1, val / 21) * 120)}, 100%, 60%)`;
+            } else if (type === 'poison') {
+                if (val <= 0) return "#888";
+                if (val >= 10) return "#ff00ff";
+                return `hsl(${Math.max(0, 120 - (val * 12))}, 100%, 60%)`;
+            }
+            return "#888";
+        }
+
+        // P2P通信（PeerJS）の設定
+        const urlParams = new URLSearchParams(window.location.search);
+        let roomId = urlParams.get('room');
+        let peer = null;
+        let connections = [];
+
+        if (!roomId) {
+            roomId = Math.random().toString(36).substring(2, 8);
+            window.history.replaceState(null, null, `?room=${roomId}`);
+            initPeer(roomId, true);
+        } else {
+            initPeer(null, false);
+        }
+
+        function initPeer(id, isHost) {
+            peer = id ? new Peer(id) : new Peer();
+
+            peer.on('open', (myId) => {
+                document.getElementById('app-title').innerText = `Room: ${roomId}`;
+                if (!isHost) {
+                    const conn = peer.connect(roomId);
+                    setupConnection(conn);
+                }
+            });
+
+            peer.on('connection', (conn) => {
+                setupConnection(conn);
+                setTimeout(() => {
+                    conn.send({ type: 'SYNC', state: gameState });
+                }, 500);
+            });
+        }
+
+        function setupConnection(conn) {
+            connections.push(conn);
+            conn.on('data', (data) => {
+                if (data.type === 'SYNC') {
+                    gameState = data.state;
+                    saveAndRender();
+                } else if (data.type === 'UPDATE') {
+                    setDeepValue(gameState, data.path, data.value);
+                    saveAndRender();
+                    if (window.location.search.includes('room') && peer.id === roomId) {
+                        broadcast({ type: 'SYNC', state: gameState });
+                    }
+                }
+            });
+            conn.on('close', () => {
+                connections = connections.filter(c => c !== conn);
+            });
+        }
+
+        function broadcast(data) {
+            connections.forEach(conn => {
+                if (conn.open) conn.send(data);
+            });
+        }
+
+        function setDeepValue(obj, path, value) {
+            const parts = path.split('/');
+            let current = obj;
+            for (let i = 0; i < parts.length - 1; i++) {
+                if (!current[parts[i]]) current[parts[i]] = {};
+                current = current[parts[i]];
+            }
+            current[parts[parts.length - 1]] = value;
+        }
+
+        function getDeepValue(obj, path) {
+            return path.split('/').reduce((o, p) => (o ? o[p] : null), obj);
+        }
+
+        // ローカルへの保存と画面更新を同時に行う関数
+        function saveAndRender() {
+            localStorage.setItem('edh_counter_state', JSON.stringify(gameState));
+            renderUI();
+        }
+
+        window.directInput = (path, value) => {
+            setDeepValue(gameState, path, value);
+            saveAndRender();
+            broadcast({ type: 'UPDATE', path: path, value: value });
+        };
+
+        window.changeValue = (path, delta) => {
+            let currentVal = getDeepValue(gameState, path);
+            if (currentVal === undefined || currentVal === null) {
+                currentVal = path.includes('life') ? 40 : 0;
+            }
+            let newVal = currentVal + delta;
+            window.directInput(path, newVal);
+        };
+
+        window.resetGame = () => {
+            if (!confirm("初期化しますか？")) return;
+            gameState = JSON.parse(JSON.stringify(defaultState));
+            saveAndRender();
+            broadcast({ type: 'SYNC', state: gameState });
+        };
+
+        window.shuffleNames = () => {
+            const currentNames = playerSlots.map(slot => document.getElementById(`name-${slot}`).value).filter(n => n !== "");
+            if (currentNames.length < 2) return alert("名前を2人以上選択してください");
+            
+            playerSlots.forEach(s => document.getElementById(`slot-${s}`).classList.add('shuffling'));
+            let count = 0;
+            const interval = setInterval(() => {
+                playerSlots.forEach(slot => {
+                    const sel = document.getElementById(`name-${slot}`);
+                    sel.value = currentNames[Math.floor(Math.random() * currentNames.length)];
+                });
+                if (++count >= 15) {
+                    clearInterval(interval);
+                    const shuffled = [...currentNames].sort(() => Math.random() - 0.5);
+                    playerSlots.forEach((slot, i) => {
+                        const finalName = shuffled[i] || "";
+                        setDeepValue(gameState, `${slot}/name`, finalName);
+                        document.getElementById(`slot-${slot}`).classList.remove('shuffling');
+                    });
+                    saveAndRender();
+                    broadcast({ type: 'SYNC', state: gameState });
+                }
+            }, 80);
+        };
+
+        window.triggerDice = (slot) => {
+            const input = document.getElementById(`dice-in-${slot}`);
+            const match = input.value.toLowerCase().match(/^(\d+)d(\d+)$/);
+            if (!match) return;
+            window.directInput(`${slot}/diceFormat`, input.value);
+            let r = 0;
+            const itv = setInterval(() => {
+                const tmp = Array.from({length:match[1]},()=>Math.floor(Math.random()*match[2])+1).reduce((a,b)=>a+b);
+                window.directInput(`${slot}/diceResult`, tmp);
+                if (++r > 8) clearInterval(itv);
+            }, 80);
+            input.blur();
+        };
+
+        window.copyRoomUrl = () => {
+            navigator.clipboard.writeText(window.location.href);
+            alert("部屋の同期用URLをコピーしました！他のプレイヤーに送ってください。");
+        };
+
+        function renderUI() {
+            const d = gameState;
+            const dnState = d.dayNight || "none";
+            const dnSelect = document.getElementById('day-night-ctrl');
+            if (dnSelect && document.activeElement !== dnSelect) dnSelect.value = dnState;
+            document.body.className = `state-${dnState}`;
+
+            playerSlots.forEach((target) => {
+                const p = d[target] || {};
+                const nameSel = document.getElementById(`name-${target}`);
+                const slotBox = document.getElementById(`slot-${target}`); 
+                if (nameSel && document.activeElement !== nameSel && !slotBox.classList.contains('shuffling')) {
+                    nameSel.value = p.name || "";
+                }
+                const check = document.getElementById(`check-${target}`);
+                if (check) check.checked = !!p.isPartner;
+                document.getElementById(`dice-fmt-${target}`).innerText = p.diceFormat || "";
+                document.getElementById(`dice-res-${target}`).innerText = p.diceResult || "--";
+                
+                const lifeIn = document.getElementById(`life-${target}`);
+                if (lifeIn && document.activeElement !== lifeIn) {
+                    const lifeVal = p.life ?? 40;
+                    lifeIn.value = lifeVal;
+                    lifeIn.style.color = getDynamicColor(lifeVal, 'life');
+                    lifeIn.classList.toggle('small-font', lifeVal >= 100);
+                }
+                const poi = p.poison ?? 0;
+                const rad = p.rad ?? 0;
+                let sideHtml = "";
+                if (p.isPartner) {
+                    sideHtml += `<div class="side-item"><span class="side-label" style="color:#00bcd4">統唱数A</span><button class="btn-side" onclick="changeValue('${target}/tax1',-1)">-</button><span class="side-val" style="color:#00bcd4">${p.tax1??0}</span><button class="btn-side" onclick="changeValue('${target}/tax1',1)">+</button></div>`;
+                    sideHtml += `<div class="side-item"><span class="side-label" style="color:#00bcd4">統唱数B</span><button class="btn-side" onclick="changeValue('${target}/tax2',-1)">-</button><span class="side-val" style="color:#00bcd4">${p.tax2??0}</span><button class="btn-side" onclick="changeValue('${target}/tax2',1)">+</button></div>`;
+                } else {
+                    sideHtml += `<div class="side-item"><span class="side-label" style="color:#00bcd4">統唱数</span><button class="btn-side" onclick="changeValue('${target}/tax1',-1)">-</button><span class="side-val" style="color:#00bcd4">${p.tax1??0}</span><button class="btn-side" onclick="changeValue('${target}/tax1',1)">+</button></div>`;
+                }
+                sideHtml += `<div class="side-item"><span class="side-label" style="color:#adff2f">毒</span><button class="btn-side" onclick="changeValue('${target}/poison',-1)">-</button><span class="side-val" style="color:${getDynamicColor(poi, 'poison')}">${poi}</span><button class="btn-side" onclick="changeValue('${target}/poison',1)">+</button></div><div class="side-item"><span class="side-label" style="color:#ffeb3b">RAD</span><button class="btn-side" onclick="changeValue('${target}/rad',-1)">-</button><span class="side-val" style="color:${rad>0?'#ffeb3b':'#888'}">${rad}</span><button class="btn-side" onclick="changeValue('${target}/rad',1)">+</button></div>`;
+                document.getElementById(`side-main-${target}`).innerHTML = sideHtml;
+                
+                const cmdArea = document.getElementById(`cmd-area-${target}`);
+                if (cmdArea) {
+                    cmdArea.innerHTML = '';
+                    const clockwiseOrder = ['P1', 'P2', 'P4', 'P3'];
+                    clockwiseOrder.forEach((from) => {
+                        const fromData = d[from] || {};
+                        const fromIsP = !!fromData.isPartner;
+                        const v1 = p.cmd?.[from]?.v1 ?? 0;
+                        const v2 = p.cmd?.[from]?.v2 ?? 0;
+                        const isSelf = (from === target);
+                        const displayNum = from.replace('P', '');
+                        let boxHtml = `<div class="cmd-box cmd-pos-${displayNum} ${isSelf ? 'is-self' : ''}">
+                            <div class="cmd-header">
+                                <span class="cmd-order">${displayNum}</span>
+                                <span class="cmd-name-label">${fromData.name||from} 統受打</span>
+                            </div>
+                            <div class="cmd-body">
+                                <div class="cmd-unit">
+                                    ${fromIsP?'<span class="cmd-side-label">A</span>':''}
+                                    <div class="cmd-val-wrap">
+                                        <button class="btn-cmd" onclick="changeValue('${target}/cmd/${from}/v1',-1)">-</button>
+                                        <span class="cmd-val" style="color:${getDynamicColor(v1, 'cmd')}">${v1}</span>
+                                        <button class="btn-cmd" onclick="changeValue('${target}/cmd/${from}/v1',1)">+</button>
+                                    </div>
+                                </div>
+                                ${fromIsP?`<div class="cmd-unit">
+                                    <span class="cmd-side-label">B</span>
+                                    <div class="cmd-val-wrap">
+                                        <button class="btn-cmd" onclick="changeValue('${target}/cmd/${from}/v2',-1)">-</button>
+                                        <span class="cmd-val" style="color:${getDynamicColor(v2, 'cmd')}">${v2}</span>
+                                        <button class="btn-cmd" onclick="changeValue('${target}/cmd/${from}/v2',1)">+</button>
+                                    </div>
+                                </div>`:''}
+                            </div>
+                        </div>`;
+                        cmdArea.insertAdjacentHTML('beforeend', boxHtml);
+                    });
+                }
+            });
+        }
+
+        // 初期表示
+        renderUI();
+    </script>
+</body>
+</html>
