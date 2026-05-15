@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gemini Commander Counter (Custom List)</title>
+    <title>Gemini Commander Counter (Dynamic List)</title>
     <link rel="icon" href="favicon.png" type="image/png">
     <style>
         * { box-sizing: border-box; }
@@ -65,7 +65,7 @@
         .day-night-select { background: #444; color: #fff; font-size: 2.5vmin; }
         .room-share-btn { background: #e91e63; color: #fff; font-size: 2.5vmin; border: none; padding: 1px 4px; height: 4vh; cursor: pointer; }
         
-        /* 新しい自作プルダウンメニューのスタイル */
+        /* 自作プルダウンメニューのスタイル */
         .custom-dropdown {
             position: absolute; top: 5.5vh; left: 0; width: 35vw; background: #2a2a2a;
             border: 1px solid #555; border-radius: 4px; z-index: 999; max-height: 25vh;
@@ -98,8 +98,8 @@
 
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script>
-        // いつものメンバーリスト（ここに登録した名前が確実に選択肢に出ます）
-        const memberList = ["Player1", "Player2", "Player3", "Player4", "たろう", "じろう", "さぶろう"];
+        // 改善：初期の固定リスト（Player1等）を空に設定。LocalStorageから記憶された名前リストを読み込む
+        let savedMembers = JSON.parse(localStorage.getItem('edh_member_list')) || [];
         
         const playerSlots = ['P1', 'P2', 'P3', 'P4'];
         
@@ -116,23 +116,17 @@
 
         // UI生成
         playerSlots.forEach((slot, index) => {
-            // メンバーリストの選択肢を生成
-            const listItemsHtml = memberList.map(name => `<div onclick="selectPresetName('${slot}', '${name}')">${name}</div>`).join('');
-
             let html = `
                 <div class="player-box" id="slot-${slot}">
                     <div class="header-area">
                         <span class="order-num">${index + 1}</span>
                         <div class="name-wrapper">
-                            <!-- 改善：タップした時に確実に自作リストが開くように設定 -->
                             <input type="text" id="name-${slot}" class="name-input" value="" autocomplete="off" 
                                 onclick="showDropdown('${slot}')" 
-                                onchange="directInput('${slot}/name', this.value)">
+                                onchange="handleNameChange('${slot}', this.value)">
                             
-                            <!-- 自作のプルダウンリストボックス -->
-                            <div id="drop-${slot}" class="custom-dropdown">
-                                ${listItemsHtml}
-                            </div>
+                            <!-- 自作のプルダウンリストボックス（最初は空、JavaScriptで動的に生成） -->
+                            <div id="drop-${slot}" class="custom-dropdown"></div>
                         </div>
                         <div class="partner-wrapper">
                             <input type="checkbox" id="check-${slot}" class="partner-check" onchange="directInput('${slot}/isPartner', this.checked)">
@@ -170,11 +164,21 @@
             grid.insertAdjacentHTML('beforeend', html);
         });
 
+        // 改善：記憶された名前リストからプルダウンの選択肢を生成・更新する関数
+        function updateDropdownMenus() {
+            playerSlots.forEach(slot => {
+                const dropBox = document.getElementById(`drop-${slot}`);
+                if (savedMembers.length === 0) {
+                    dropBox.innerHTML = '<div style="color:#888; font-size:2.5vmin;">履歴なし</div>';
+                } else {
+                    dropBox.innerHTML = savedMembers.map(name => `<div onclick="selectPresetName('${slot}', '${name}')">${name}</div>`).join('');
+                }
+            });
+        }
+
         // 自作リストを表示する関数
         window.showDropdown = (slot) => {
-            // 一旦すべてのリストを閉じる
             playerSlots.forEach(s => document.getElementById(`drop-${s}`).style.display = 'none');
-            // 対象のリストだけ開く
             document.getElementById(`drop-${slot}`).style.display = 'block';
         };
 
@@ -183,6 +187,22 @@
             document.getElementById(`name-${slot}`).value = name;
             window.directInput(`${slot}/name`, name);
             document.getElementById(`drop-${slot}`).style.display = 'none';
+        };
+
+        // 改善：手動で新しい名前が入力されたら、リストに自動追加する処理
+        window.handleNameChange = (slot, value) => {
+            const trimmedValue = value.trim();
+            if (trimmedValue !== "" && !trimmedValue.startsWith("Player ")) {
+                // 重複していなければ配列に追加
+                if (!savedMembers.includes(trimmedValue)) {
+                    savedMembers.push(trimmedValue);
+                    // ブラウザにリストを保存
+                    localStorage.setItem('edh_member_list', JSON.stringify(savedMembers));
+                    // 選択肢の表示を更新
+                    updateDropdownMenus();
+                }
+            }
+            window.directInput(`${slot}/name`, trimmedValue);
         };
 
         // 画面のどこかをタップしたらリストを閉じる処理
@@ -300,7 +320,7 @@
         };
 
         window.resetGame = () => {
-            if (!confirm("初期化しますか？（入力した名前も初期値に戻ります）")) return;
+            if (!confirm("初期化しますか？（入力した名前も初期値に戻ります。プルダウンの履歴は消えません）")) return;
             gameState = JSON.parse(JSON.stringify(defaultState));
             saveAndRender();
             broadcast({ type: 'SYNC', state: gameState });
@@ -444,7 +464,8 @@
             });
         }
 
-        // 初期表示
+        // 初期表示およびドロップダウンの構築
+        updateDropdownMenus();
         renderUI();
     </script>
 </body>
