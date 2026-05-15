@@ -63,8 +63,6 @@
         .reset-btn { background: #c62828 ; color: #fff; font-size: 2.5vmin; border: none; }
         .day-night-select { background: #444; color: #fff; font-size: 2.5vmin; }
         .room-share-btn { background: #e91e63; color: #fff; font-size: 2.5vmin; border: none; padding: 1px 4px; height: 4vh; cursor: pointer; }
-        
-        /* 自作プルダウンメニューのスタイル */
         .custom-dropdown {
             position: absolute; top: 5.5vh; left: 0; width: 35vw; background: #2a2a2a;
             border: 1px solid #555; border-radius: 4px; z-index: 999; max-height: 25vh;
@@ -96,11 +94,8 @@
 
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script>
-        // 改善：初期の固定リスト（Player1等）を空に設定。LocalStorageから記憶された名前リストを読み込む
         let savedMembers = JSON.parse(localStorage.getItem('edh_member_list')) || [];
-        
         const playerSlots = ['P1', 'P2', 'P3', 'P4'];
-        
         const defaultState = {
             dayNight: "none",
             P1: { name: "Player 1", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } },
@@ -108,11 +103,8 @@
             P3: { name: "Player 3", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } },
             P4: { name: "Player 4", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } }
         };
-
         let gameState = JSON.parse(localStorage.getItem('edh_counter_state')) || JSON.parse(JSON.stringify(defaultState));
         const grid = document.getElementById('main-grid');
-
-        // UI生成
         playerSlots.forEach((slot, index) => {
             let html = `
                 <div class="player-box" id="slot-${slot}">
@@ -122,8 +114,6 @@
                             <input type="text" id="name-${slot}" class="name-input" value="" autocomplete="off" 
                                 onclick="showDropdown('${slot}')" 
                                 onchange="handleNameChange('${slot}', this.value)">
-                            
-                            <!-- 自作のプルダウンリストボックス（最初は空、JavaScriptで動的に生成） -->
                             <div id="drop-${slot}" class="custom-dropdown"></div>
                         </div>
                         <div class="partner-wrapper">
@@ -161,8 +151,6 @@
                 </div>`;
             grid.insertAdjacentHTML('beforeend', html);
         });
-
-        // 改善：記憶された名前リストからプルダウンの選択肢を生成・更新する関数
         function updateDropdownMenus() {
             playerSlots.forEach(slot => {
                 const dropBox = document.getElementById(`drop-${slot}`);
@@ -173,43 +161,31 @@
                 }
             });
         }
-
-        // 自作リストを表示する関数
         window.showDropdown = (slot) => {
             playerSlots.forEach(s => document.getElementById(`drop-${s}`).style.display = 'none');
             document.getElementById(`drop-${slot}`).style.display = 'block';
         };
-
-        // リストから名前が選ばれた時の処理
         window.selectPresetName = (slot, name) => {
             document.getElementById(`name-${slot}`).value = name;
             window.directInput(`${slot}/name`, name);
             document.getElementById(`drop-${slot}`).style.display = 'none';
         };
-
-        // 改善：手動で新しい名前が入力されたら、リストに自動追加する処理
         window.handleNameChange = (slot, value) => {
             const trimmedValue = value.trim();
             if (trimmedValue !== "" && !trimmedValue.startsWith("Player ")) {
-                // 重複していなければ配列に追加
                 if (!savedMembers.includes(trimmedValue)) {
                     savedMembers.push(trimmedValue);
-                    // ブラウザにリストを保存
                     localStorage.setItem('edh_member_list', JSON.stringify(savedMembers));
-                    // 選択肢の表示を更新
                     updateDropdownMenus();
                 }
             }
             window.directInput(`${slot}/name`, trimmedValue);
         };
-
-        // 画面のどこかをタップしたらリストを閉じる処理
         document.addEventListener('click', (e) => {
             if (!e.target.classList.contains('name-input')) {
                 playerSlots.forEach(s => document.getElementById(`drop-${s}`).style.display = 'none');
             }
         });
-
         function getDynamicColor(val, type) {
             if (type === 'life') {
                 if (val <= 0) return "#f44336";
@@ -224,8 +200,6 @@
             }
             return "#888";
         }
-
-        // P2P通信（PeerJS）の設定
         const urlParams = new URLSearchParams(window.location.search);
         let roomId = urlParams.get('room');
         let peer = null;
@@ -249,7 +223,6 @@
                     setupConnection(conn);
                 }
             });
-
             peer.on('connection', (conn) => {
                 setupConnection(conn);
                 setTimeout(() => {
@@ -257,7 +230,6 @@
                 }, 500);
             });
         }
-
         function setupConnection(conn) {
             connections.push(conn);
             conn.on('data', (data) => {
@@ -276,13 +248,11 @@
                 connections = connections.filter(c => c !== conn);
             });
         }
-
         function broadcast(data) {
             connections.forEach(conn => {
                 if (conn.open) conn.send(data);
             });
         }
-
         function setDeepValue(obj, path, value) {
             const parts = path.split('/');
             let current = obj;
@@ -296,18 +266,15 @@
         function getDeepValue(obj, path) {
             return path.split('/').reduce((o, p) => (o ? o[p] : null), obj);
         }
-
         function saveAndRender() {
             localStorage.setItem('edh_counter_state', JSON.stringify(gameState));
             renderUI();
         }
-
         window.directInput = (path, value) => {
             setDeepValue(gameState, path, value);
             saveAndRender();
             broadcast({ type: 'UPDATE', path: path, value: value });
         };
-
         window.changeValue = (path, delta) => {
             let currentVal = getDeepValue(gameState, path);
             if (currentVal === undefined || currentVal === null) {
@@ -316,17 +283,14 @@
             let newVal = currentVal + delta;
             window.directInput(path, newVal);
         };
-
         window.resetGame = () => {
             if (!confirm("初期化しますか？（入力した名前も初期値に戻ります。プルダウンの履歴は消えません）")) return;
             gameState = JSON.parse(JSON.stringify(defaultState));
             saveAndRender();
             broadcast({ type: 'SYNC', state: gameState });
         };
-
         window.shuffleNames = () => {
             const currentNames = playerSlots.map(slot => gameState[slot].name || slot);
-            
             playerSlots.forEach(s => document.getElementById(`slot-${s}`).classList.add('shuffling'));
             let count = 0;
             const interval = setInterval(() => {
@@ -361,19 +325,16 @@
             }, 80);
             input.blur();
         };
-
         window.copyRoomUrl = () => {
             navigator.clipboard.writeText(window.location.href);
             alert("部屋の同期用URLをコピーしました！他のプレイヤーに送ってください。");
         };
-
         function renderUI() {
             const d = gameState;
             const dnState = d.dayNight || "none";
             const dnSelect = document.getElementById('day-night-ctrl');
             if (dnSelect && document.activeElement !== dnSelect) dnSelect.value = dnState;
             document.body.className = `state-${dnState}`;
-
             playerSlots.forEach((target) => {
                 const p = d[target] || {};
                 const nameIn = document.getElementById(`name-${target}`);
@@ -385,7 +346,6 @@
                 if (check) check.checked = !!p.isPartner;
                 document.getElementById(`dice-fmt-${target}`).innerText = p.diceFormat || "";
                 document.getElementById(`dice-res-${target}`).innerText = p.diceResult || "--";
-                
                 const lifeIn = document.getElementById(`life-${target}`);
                 if (lifeIn && document.activeElement !== lifeIn) {
                     const lifeVal = p.life ?? 40;
@@ -404,7 +364,6 @@
                 }
                 sideHtml += `<div class="side-item"><span class="side-label" style="color:#adff2f">毒</span><button class="btn-side" onclick="changeValue('${target}/poison',-1)">-</button><span class="side-val" style="color:${getDynamicColor(poi, 'poison')}">${poi}</span><button class="btn-side" onclick="changeValue('${target}/poison',1)">+</button></div><div class="side-item"><span class="side-label" style="color:#ffeb3b">RAD</span><button class="btn-side" onclick="changeValue('${target}/rad',-1)">-</button><span class="side-val" style="color:${rad>0?'#ffeb3b':'#888'}">${rad}</span><button class="btn-side" onclick="changeValue('${target}/rad',1)">+</button></div>`;
                 document.getElementById(`side-main-${target}`).innerHTML = sideHtml;
-                
                 const cmdArea = document.getElementById(`cmd-area-${target}`);
                 if (cmdArea) {
                     cmdArea.innerHTML = '';
@@ -445,8 +404,6 @@
                 }
             });
         }
-
-        // 初期表示およびドロップダウンの構築
         updateDropdownMenus();
         renderUI();
     </script>
