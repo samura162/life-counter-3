@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gemini Commander Counter (Custom Name)</title>
+    <title>Gemini Commander Counter (Datalist Name)</title>
     <link rel="icon" href="favicon.png" type="image/png">
     <style>
         * { box-sizing: border-box; }
@@ -25,7 +25,7 @@
         #slot-P3 { grid-area: 2 / 2 / 3 / 3; } 
         #slot-P4 { grid-area: 2 / 1 / 3 / 2; } 
         .header-area { height: 4vh; display: flex; align-items: center; gap: 1px; flex-shrink: 0; white-space: nowrap; }
-        /* 自由に入力できるようにセレクトボックスからテキスト入力欄に変更 */
+        /* 入力欄とリスト選択を両立するスタイル */
         .name-input { background: #222; color: #fff; border: 1px solid #444; font-size: 4vmin; width: 35vw; height: 5vh; text-align: center; border-radius: 3px; }
         .partner-wrapper label { font-size: 3vmin; }
         .main-display-wrapper { height: 57%; display: flex; align-items: center; gap: 1px; flex-shrink: 0; }
@@ -60,7 +60,7 @@
         .btn-plus { background: #2e7d32; color: #fff; }
         .btn-minus { background: #c62828; color: #fff; }
         .order-btn { background: #0277bd ; color: #fff; font-size: 2.5vmin; border: none; }
-        .rotate-btn { background: #6a1b9a ; color: #fff; font-size: 2.5vmin; border: none; } /* 追加：席移動ボタン用 */
+        .rotate-btn { background: #6a1b9a ; color: #fff; font-size: 2.5vmin; border: none; }
         .reset-btn { background: #c62828 ; color: #fff; font-size: 2.5vmin; border: none; }
         .day-night-select { background: #444; color: #fff; font-size: 2.5vmin; }
         .room-share-btn { background: #e91e63; color: #fff; font-size: 2.5vmin; border: none; padding: 1px 4px; height: 4vh; cursor: pointer; }
@@ -83,11 +83,16 @@
     </div>
     <div class="grid" id="main-grid"></div>
 
+    <!-- プルダウンリストに表示させたい名前の定義（ここを書き換えればメンバーを変更できます） -->
+    <datalist id="member-presets"></datalist>
+
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <script>
+        // 固定の登録メンバーリスト（この配列に名前を入れると、すべての入力欄の共通プルダウン候補になります）
+        const memberList = ["Player1", "Player2", "Player3", "Player4", "たろう", "じろう", "さぶろう"];
+        
         const playerSlots = ['P1', 'P2', 'P3', 'P4'];
         
-        // デフォルトの状態（最初はPlayer 1〜4が入るように設定）
         const defaultState = {
             dayNight: "none",
             P1: { name: "Player 1", isPartner: false, life: 40, poison: 0, rad: 0, tax1: 0, tax2: 0, diceFormat: "", diceResult: "--", cmd: { P1:{v1:0,v2:0}, P2:{v1:0,v2:0}, P3:{v1:0,v2:0}, P4:{v1:0,v2:0} } },
@@ -99,14 +104,18 @@
         let gameState = JSON.parse(localStorage.getItem('edh_counter_state')) || JSON.parse(JSON.stringify(defaultState));
         const grid = document.getElementById('main-grid');
 
+        // データリスト候補の初期生成
+        const dl = document.getElementById('member-presets');
+        dl.innerHTML = memberList.map(name => `<option value="${name}">`).join('');
+
         // UI生成
         playerSlots.forEach((slot, index) => {
             let html = `
                 <div class="player-box" id="slot-${slot}">
                     <div class="header-area">
                         <span class="order-num">${index + 1}</span>
-                        <!-- 自由に入力できるinputタグに変更。文字を打ち込んで外すと同期されます -->
-                        <input type="text" id="name-${slot}" class="name-input" value="" onchange="directInput('${slot}/name', this.value)">
+                        <!-- list属性でdatalistのIDを指定することで、入力兼プルダウンを実現 -->
+                        <input type="text" id="name-${slot}" class="name-input" list="member-presets" value="" onchange="directInput('${slot}/name', this.value)">
                         <div class="partner-wrapper">
                             <input type="checkbox" id="check-${slot}" class="partner-check" onchange="directInput('${slot}/isPartner', this.checked)">
                             <label for="check-${slot}">共闘</label>
@@ -251,13 +260,12 @@
         };
 
         window.resetGame = () => {
-            if (!confirm("初期化しますか？（入力した名前もPlayer1〜4に戻ります）")) return;
+            if (!confirm("初期化しますか？（入力した名前も初期値に戻ります）")) return;
             gameState = JSON.parse(JSON.stringify(defaultState));
             saveAndRender();
             broadcast({ type: 'SYNC', state: gameState });
         };
 
-        // 入力されている名前ベースでシャッフルする機能
         window.shuffleNames = () => {
             const currentNames = playerSlots.map(slot => gameState[slot].name || slot);
             
@@ -283,7 +291,6 @@
             }, 80);
         };
 
-        // 追加：順番を手動で自由に変えるための席ローテーション機能（P1->P2->P3->P4->P1）
         window.rotateSeats = () => {
             const p1Name = gameState.P1.name;
             const p2Name = gameState.P2.name;
