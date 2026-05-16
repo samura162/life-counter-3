@@ -284,8 +284,10 @@
             window.directInput(path, newVal);
         };
         window.resetGame = () => {
-            if (!confirm("初期化しますか？（入力した名前も初期値に戻ります。プルダウンの履歴は消えません）")) return;
-            gameState = JSON.parse(JSON.stringify(defaultState));
+            if (!confirm("初期化しますか？")) return;
+                playerSlots.forEach(slot => { setDeepValue(gameState, `${slot}/life`, 40); setDeepValue(gameState, `${slot}/poison`, 0); setDeepValue(gameState, `${slot}/rad`, 0); setDeepValue(gameState, `${slot}/tax1`, 0); setDeepValue(gameState, `${slot}/tax2`, 0); setDeepValue(gameState, `${slot}/diceFormat`, ""); setDeepValue(gameState, `${slot}/diceResult`, "--"); playerSlots.forEach(from => { setDeepValue(gameState, `${slot}/cmd/${from}/v1`, 0); setDeepValue(gameState, `${slot}/cmd/${from}/v2`, 0); });
+            });    
+            gameState.dayNight = "none";    
             saveAndRender();
             broadcast({ type: 'SYNC', state: gameState });
         };
